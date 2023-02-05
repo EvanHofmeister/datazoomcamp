@@ -251,20 +251,15 @@ prefect agent start -q 'default'
 ```
 ![Q4](homework2-question4-image.jpeg)
 
-Q5)
+Q5) From the below code, we can see the correct answer is 514,392 rows
 
 ``` python
 
 ```
 
-Q6) 
+Q6) Following the instructions in the video, we can see our password is obfuscated with 8 '*'
 
-
-``` python
-
-```
-
-
+![Q6](secret-block-example.png)
 
 
 
