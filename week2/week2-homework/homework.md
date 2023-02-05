@@ -73,10 +73,25 @@ if __name__ == "__main__":
 
 ```
 
+Q2) Applying these parameters to the CRON format, we can see '0 5 1 * *' is the correct answer. We can also double check our underderstanding with the the link below
+
+<https://crontab.guru/#0_5_1_*_*/>
+
+![Q2](CRON_Example_Question2.png)
 
 
 
 
+``` bash
+prefect deployment build /flows/02_gcp/etl_web_to_gcs.py:etl_web_to_gcs -n etl2 --cron "0 5 1 * *" -a
+```
+
+
+
+
+``` python
+
+```
 
 Q2) 0 5 1 * *  prefect deployment build flows/03_deployments/parameterized_flow.py:etl_parent_flow -n etl2 --cron "0 0 * * *" -a 
 
