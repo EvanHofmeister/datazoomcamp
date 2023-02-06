@@ -1,5 +1,7 @@
 Q1) From modifying the 'etl_web_to_gcs.py' file with the suggested perameters, we find the correct answer is 447,770 rows
 
+[q1.py file](etl_web_to_gcs-homework-2-q1.py)
+
 ``` python
 
 from pathlib import Path
@@ -80,8 +82,6 @@ Q2) Applying these parameters to the CRON format, we can see '0 5 1 * *' is the 
 ![Q2](CRON_Example_Question2.png)
 
 
-
-
 ``` bash
 prefect deployment build /flows/02_gcp/etl_web_to_gcs.py:etl_web_to_gcs -n etl2 --cron "0 5 1 * *" -a
 ```
@@ -92,6 +92,9 @@ prefect deployment build /flows/02_gcp/etl_web_to_gcs.py:etl_web_to_gcs -n etl2 
 
 
 Q3) For this question, we can parameterize the 'etl_gcs_to_bq.py' file, making sure to remove an transformation steps. The result of this shows 14,851,920 rows
+
+[q3.py file](etl_gcs_to_bq-parameterized-homework-2-q3.py)
+
 
 ``` python
 from pathlib import Path
@@ -166,7 +169,9 @@ if __name__ == "__main__":
 ![Q3](homework2-question3-image.jpeg)
 
 
-Q4) For this questions, we can again bootstrap from the 'etl_gcs_to_bq.py' file,
+Q4) For this questions, we can again bootstrap from the 'etl_gcs_to_bq.py' file. We also need to create a Github block within Prefect's GUI.
+
+[q4.py file](etl_web_to_gcs-homework-2-q4.py)
 
 ``` python
 from pathlib import Path
@@ -246,14 +251,98 @@ if __name__ == "__main__":
 
 We can then run the below bash command to point Prefect towards our ETL file:
 ``` python
-prefect deployment build .week2/week2-homework/etl_web_to_gcs-homework-2-q4.py:etl_web_to_gcs -n "GitHub Storage Flow" -sb github/github-block -o web_to_gcs_github-deployment.yaml --apply 
+prefect deployment build ./week2/week2-homework/etl_web_to_gcs-homework-2-q4.py:etl_web_to_gcs -n "GitHub Storage Flow" -sb github/github-block -o web_to_gcs_github-deployment.yaml --apply 
 prefect agent start -q 'default'
 ```
 ![Q4](homework2-question4-image.jpeg)
 
-Q5) From the below code, we can see the correct answer is 514,392 rows
+Q5) For this question I created an account for Prefect Cloud and connected the compute engine instance to this workspace. I then set up an email notification upon the code entering a 'completed' state. From the below log, we can see the correct answer is 514,392 rows
+
+Cloud Blocks:
+-Note, after connecting to the cloud workspace, I had to run `<prefect block register -m prefect_gcp/>` to make the GCS Bucket available.
+![Q5](prefect-cloud-blocks.png)
+
+Email Notification:
+![Q5](prefect-cloud-email-notification.png)
+
+Log file:
+![Q5](prefect-cloud-log.png)
+
+[q5.py file](etl_web_to_gcs-homework-2-q5.py)
 
 ``` python
+from pathlib import Path
+import pandas as pd
+from prefect import flow, task
+from prefect_gcp.cloud_storage import GcsBucket
+from random import randint
+
+
+@task(retries=3)
+def fetch(dataset_url: str) -> pd.DataFrame:
+    """Read taxi data from web into pandas DataFrame"""
+    # if randint(0, 1) > 0:
+    #     raise Exception
+
+    df = pd.read_csv(dataset_url)
+    return df
+
+
+@task(log_prints=True)
+def clean(df: pd.DataFrame, color) -> pd.DataFrame:
+    """Fix dtype issues"""
+
+    if color == 'yellow':
+        df["tpep_pickup_datetime"] = pd.to_datetime(df["tpep_pickup_datetime"])
+        df["tpep_dropoff_datetime"] = pd.to_datetime(df["tpep_dropoff_datetime"])
+    elif color == 'green':
+        df["lpep_pickup_datetime"] = pd.to_datetime(df["lpep_pickup_datetime"])
+        df["lpep_dropoff_datetime"] = pd.to_datetime(df["lpep_dropoff_datetime"])
+        
+    print(df.head(2))
+    print(f"columns: {df.dtypes}")
+    print(f"rows: {len(df)}")
+    return df
+
+
+@task()
+def write_local(df: pd.DataFrame, color: str, dataset_file: str) -> Path:
+    """Write DataFrame out locally as parquet file"""
+    path = Path(f"data/{color}/{dataset_file}.parquet")
+    df.to_parquet(path, compression="gzip")
+    return path
+
+
+@task()
+def write_gcs(path: Path) -> None:
+    """Upload local parquet file to GCS"""
+    gcs_block = GcsBucket.load("zoom-gcs")
+    gcs_block.upload_from_path(from_path=path, to_path=path)
+    return
+
+
+@flow(log_prints=True)
+def etl_web_to_gcs() -> None:
+    """The main ETL function"""
+    color = "green"
+    year = 2019
+    month = 4
+    dataset_file = f"{color}_tripdata_{year}-{month:02}"
+    dataset_url = f"https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{color}/{dataset_file}.csv.gz"
+
+    df = fetch(dataset_url)
+    df_clean = clean(df, color)
+
+    print(f'number of rows processed by script before cleaning: {len(df)}')
+    print(f'number of rows processed by script after cleaning: {len(df_clean)}')
+
+
+    path = write_local(df_clean, color, dataset_file)
+    write_gcs(path)
+
+
+if __name__ == "__main__":
+    etl_web_to_gcs()
 
 ```
 
