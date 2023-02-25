@@ -10,7 +10,7 @@ WHERE EXTRACT(YEAR FROM pickup_datetime) IN (2019, 2020)
 ```
 ![Q1](HW4_Q1.png)
 
-Q2) We can utilize Google Data Studio - using a pie chart or table by pivoting on the service type field we find the answer to be 89.9/10.1
+Q2) We can utilize Google Data Studio - using a pie chart or table by pivoting on the 'service type' field we find the answer to be 89.9/10.1
 
 Q3) Here we create a staging model as shown in the lecture, and from running the below code find the correct answer to be 43244696
 
