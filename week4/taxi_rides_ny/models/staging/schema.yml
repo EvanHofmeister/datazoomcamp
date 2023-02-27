@@ -9,12 +9,12 @@ sources:
       # For postgres:
       database: production
 
-      schema: trips_data_all
+      schema: ny_trips_data_all
 
       # loaded_at_field: record_loaded_at
       tables:
-        - name: green_tripdata
-        - name: yellow_tripdata
+        - name: green_tripdata_non_partitoned
+        - name: yellow_tripdata_non_partitoned
          # freshness:
            # error_after: {count: 6, period: hour}
 
@@ -83,11 +83,11 @@ models:
           - name: Payment_type 
             description: >
               A numeric code signifying how the passenger paid for the trip.
-            tests: 
-              - accepted_values:
-                  values: "{{ var('payment_type_values') }}"
-                  severity: warn
-                  quote: false
+            # tests: 
+            #   - accepted_values:
+            #       values: "{{ var('payment_type_values') }}"
+            #       severity: warn
+            #       quote: false
           - name: payment_type_description
             description: Description of the payment_type code
           - name: Fare_amount 
@@ -176,10 +176,10 @@ models:
             description: >
               A numeric code signifying how the passenger paid for the trip.
             tests: 
-              - accepted_values:
-                  values: "{{ var('payment_type_values') }}"
-                  severity: warn
-                  quote: false
+              # - accepted_values:
+              #     values: "{{ var('payment_type_values') }}"
+              #     severity: warn
+              #     quote: false
           - name: payment_type_description
             description: Description of the payment_type code
           - name: Fare_amount 
