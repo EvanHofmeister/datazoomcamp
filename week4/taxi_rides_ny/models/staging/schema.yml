@@ -7,7 +7,7 @@ sources:
       #database: taxi-rides-ny-339813
 
       # For postgres:
-      database: production
+      database: ny-rides-evan
 
       schema: ny_trips_data_all
 
@@ -15,6 +15,7 @@ sources:
       tables:
         - name: green_tripdata_non_partitoned
         - name: yellow_tripdata_non_partitoned
+        - name: fhv_tripdata_non_partitoned_2019_only
          # freshness:
            # error_after: {count: 6, period: hour}
 
