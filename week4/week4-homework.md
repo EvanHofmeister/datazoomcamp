@@ -31,3 +31,4 @@ WHERE EXTRACT(YEAR FROM pickup_datetime) IN (2019)
 
 Q5) From running the below procedure/code we find the correct answer to be January
 
+![Q5](HW4_Q5.png)
