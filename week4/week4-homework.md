@@ -5,7 +5,7 @@ To answer these questions I needed to utilize the Prefect flow written for week 
 Q1) From running the below procedure/code we find the correct answer to be 61648442
 
 ``` bash
-SELECT COUNT(*) FROM de-rides-375425.ny_rides_data.trips_fact
+SELECT COUNT(*) FROM `ny-rides-evan.dbt_evan.fact_trips'
 WHERE EXTRACT(YEAR FROM pickup_datetime) IN (2019, 2020)
 ```
 ![Q1](HW4_Q1.png)
@@ -16,7 +16,7 @@ Q3) Here we create a staging model as shown in the lecture, and from running the
 
 
 ``` bash
-select COUNT(*) FROM de-rides-375425.ny_rides_data.stg_fhv_rides 
+select COUNT(*) FROM `ny-rides-evan.dbt_evan.stg_fhv_tripdata` 
 WHERE EXTRACT(YEAR FROM pickup_datetime) IN (2019)
 ```
 ![Q3](HW4_Q3.png)
@@ -24,7 +24,7 @@ WHERE EXTRACT(YEAR FROM pickup_datetime) IN (2019)
 Q4) Again here if we follow this week's lecture on creating core models, from running the below SQL we find the answer to be 22998722
 
 ``` bash
-SELECT COUNT(*) FROM de-rides-375425.ny_rides_data..fhv_trips_fact
+SELECT DISTINCT count(*) as count1 FROM `ny-rides-evan.dbt_evan.fact_fhv_trips`
 WHERE EXTRACT(YEAR FROM pickup_datetime) IN (2019)
 ```
 ![Q4](HW4_Q4.png)
