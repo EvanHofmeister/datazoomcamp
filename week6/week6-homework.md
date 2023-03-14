@@ -10,6 +10,7 @@ Q5) The correct answer is Deserializer Configuration, Bootstrap Server, Group-Id
 
 Q6) We can use kafka-python instead of the java library as it's easier to follow the concepts and not get hung up on java syntax 
 
+Producer:
 ``` python
 import pandas as pd
 import json
@@ -48,6 +49,7 @@ for count, chunk in enumerate(pd.read_csv(path, compression="gzip", chunksize=10
     sleep(0.3)
 ```
 
+Consumer:
 ``` python
 from kafka import KafkaConsumer
 import json
