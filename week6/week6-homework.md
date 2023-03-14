@@ -24,7 +24,7 @@ producer = KafkaProducer(bootstrap_servers=['localhost:PORT'])
 # Initialize 
 producer = KafkaProducer(bootstrap_servers=['localhost:9092'])
 
-path = f'/Users/evanhofmeister/data-zoom-camp/Data'/green_tripdata_2019-01.csv.gz'
+path = r'/Users/evanhofmeister/data-zoom-camp/Data'/green_tripdata_2019-01.csv.gz'
 
 for count, chunk in enumerate(pd.read_csv(path, compression="gzip", chunksize=10000)):
     # Fix format
@@ -42,7 +42,7 @@ for count, chunk in enumerate(pd.read_csv(path, compression="gzip", chunksize=10
     data = json.dumps(chunkd, default=str).encode('utf-8')
 
     # Send the data to Kafka
-    producer.send(topic="trips", key=key, value=data)
+    producer.send(topic="taxi_trips", key=key, value=data)
 
     # Sleep
     sleep(0.3)
