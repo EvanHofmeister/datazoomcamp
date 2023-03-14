@@ -64,11 +64,11 @@ consumer = KafkaConsumer('trips',
                          auto_offset_reset='earliest',
                          enable_auto_commit=False)
 
+message_df = pd.DataFrame()
 for message in consumer:
-    mframe = pd.DataFrame(message.value)
+    message_df = message_df.append(message.value, ignore_index=True)
 
-   
-    print('output: {mframe['PUlocationID'].value_counts()}')
+print(message_df['PUlocationID'].value_counts())
 
 
 ```
