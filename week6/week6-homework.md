@@ -26,7 +26,7 @@ producer = KafkaProducer(bootstrap_servers=['localhost:9092'])
 
 path = f'/Users/evanhofmeister/data-zoom-camp/Data'/green_tripdata_2019-01.csv.gz'
 
-for count, chunk in (pd.read_csv(path, compression="gzip", chunksize=10000)):
+for count, chunk in enumerate(pd.read_csv(path, compression="gzip", chunksize=10000)):
     # Fix format
 
     chunk["pickup_datetime"] = pd.to_datetime(chunk["pickup_datetime"])
