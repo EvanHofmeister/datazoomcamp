@@ -11,6 +11,9 @@ Q5) The correct answer is Deserializer Configuration, Bootstrap Server, Group-Id
 Q6) We can use kafka-python instead of the java library as it's easier to follow the concepts and not get hung up on java syntax 
 
 Producer:
+
+[python-kafka_producer.py](python-kafka_producer.py)
+
 ``` python
 import pandas as pd
 import json
@@ -50,6 +53,9 @@ for count, chunk in enumerate(pd.read_csv(path, compression="gzip", chunksize=10
 ```
 
 Consumer:
+
+[python-kafka_consumer.py](python-kafka_consumer.py)
+
 ``` python
 from kafka import KafkaConsumer
 import json
@@ -69,6 +75,4 @@ for message in consumer:
     message_df = message_df.append(message.value, ignore_index=True)
 
 print(message_df['PUlocationID'].value_counts())
-
-
 ```
