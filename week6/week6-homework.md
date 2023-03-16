@@ -78,4 +78,5 @@ print(message_df['PUlocationID'].value_counts())
 ```
 
 Output:
+
 ![Q6](HW6_Q6.png)
