@@ -228,14 +228,14 @@ Next we can step through the below procedures to run dbt and piperider:
 
 Q1) From running the below procedure/code we find the correct answer to be 60.1/39.5/0.4
 
-![Q1](HW_Q1.png)
+![Q1](HW_Piperider_Q1.png)
 
 Q2) From running the below procedure/code we find the correct answer to be 61.4M/25K/148.6K
 
-![Q2](HW_Q2.png)
+![Q2](HW_Piperider_Q2.png)
 
 Q3) From running the below procedure/code we find the correct answer to be 2.95/35.43/-23.88/167.3K/181.5M
 
-![Q3](HW_Q3.png)
+![Q3](HW_Piperider_Q3.png)
 
 
