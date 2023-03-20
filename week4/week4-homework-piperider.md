@@ -1,6 +1,158 @@
 For this homework we can follow the below steps to run Piperider with DuckDB:
 
-### 1. Initial setup
+### 1. Create local postgres database to house green, yellow, and FHV taxi data
+
+First we need to install postgres and pgcli
+
+```bash
+$ brew install postgresql@14
+```
+
+```bash
+$ brew install pgcli
+```
+
+Then we can create a postgres user and database:
+```bash
+create postgres user and database:
+postgres-> CREATE DATABASE ny_taxi;
+postgres-> GRANT ALL PRIVILEGES ON DATABASE ny_taxi TO myuser;
+ALTER ROLE myuser INHERIT;
+GRANT ALL ON SCHEMA ny_taxi TO myuser;
+```
+
+Now we can run the below python script to grab the parquet files and load them into the postgres database:
+
+```python
+from pathlib import Path
+import pandas as pd
+from prefect import flow, task
+# from prefect_gcp.cloud_storage import GcsBucket
+from random import randint
+from time import time
+
+#sqlalchemy dependencies
+from sqlalchemy import create_engine
+import sys
+import subprocess
+
+# implement pip as a subprocess:
+# subprocess.check_call([sys.executable, '-m', 'pip', 'install', 
+# '<psycopg2-binary>'])
+
+@task(retries=3, log_prints=True)
+def fetch(dataset_url: str) -> pd.DataFrame:
+    print(dataset_url)
+    # df = pd.read_csv(dataset_url, compression='gzip')
+    df = pd.read_csv(dataset_url, compression='gzip', encoding='ISO-8859-1')
+    return df
+
+
+@task(log_prints=True)
+def clean(color: str, df: pd.DataFrame) -> pd.DataFrame:
+
+    if color == "yellow":
+        """Fix dtype issues"""
+        df["tpep_pickup_datetime"] = pd.to_datetime(df["tpep_pickup_datetime"])
+        df["tpep_dropoff_datetime"] = pd.to_datetime(df["tpep_dropoff_datetime"])
+
+    if color == "green":
+        """Fix dtype issues"""
+        df["lpep_pickup_datetime"] = pd.to_datetime(df["lpep_pickup_datetime"])
+        df["lpep_dropoff_datetime"] = pd.to_datetime(df["lpep_dropoff_datetime"])
+        df["trip_type"] = df["trip_type"].astype('Int64')
+
+    if color == "yellow" or color == "green":
+        df["VendorID"] = df["VendorID"].astype('Int64')
+        df["RatecodeID"] = df["RatecodeID"].astype('Int64')
+        df["PULocationID"] = df["PULocationID"].astype('Int64')
+        df["DOLocationID"] = df["DOLocationID"].astype('Int64')
+        df["passenger_count"] = df["passenger_count"].astype('Int64')
+        df["payment_type"] = df["payment_type"].astype('Int64')
+
+    if color == "fhv":
+        """Rename columns"""
+        df.rename({'dropoff_datetime':'dropOff_datetime'}, axis='columns', inplace=True)
+        df.rename({'PULocationID':'PUlocationID'}, axis='columns', inplace=True)
+        df.rename({'DOLocationID':'DOlocationID'}, axis='columns', inplace=True)
+
+        """Fix dtype issues"""
+        df["pickup_datetime"] = pd.to_datetime(df["pickup_datetime"])
+        df["dropOff_datetime"] = pd.to_datetime(df["dropOff_datetime"])
+
+        df["PUlocationID"] = df["PUlocationID"].astype('Int64')
+        df["DOlocationID"] = df["DOlocationID"].astype('Int64')
+
+    print(df.head(2))
+    print(f"columns: {df.dtypes}")
+    print(f"rows: {len(df)}")
+    return df
+
+
+@task()
+def write_local(color: str, df: pd.DataFrame, dataset_file: str, engine) -> Path:   
+    t_start = time()
+    df.to_sql(name=f"{color}_taxi_data", con=engine, if_exists='append')
+    t_end = time()
+    print('insert another chunk..., took %.3f second' % (t_end - t_start))
+
+@flow()
+def web_to_gcs() -> None:
+
+    # color = "yellow"
+    # years = [2019,2020]
+    color = "green"
+    years = [2019,2020]
+    # color = "fhv"
+    # years = [2019]
+    
+
+    engine = create_engine('postgresql://localhost/ny_taxi')
+    engine.connect()
+    connection = engine.raw_connection()
+    cursor = connection.cursor()
+    command = "DROP TABLE IF EXISTS {};".format(f"{color}_taxi_data")
+    cursor.execute(command)
+    connection.commit()
+    cursor.close()
+
+    for year in years:
+        for month in range(1, 13):
+            dataset_file = f"{color}_tripdata_{year}-{month:02}"
+            dataset_url = f"https://github.com/DataTalksClub/nyc-tlc-data/releases/download/{color}/{dataset_file}.csv.gz"
+
+            df = fetch(dataset_url)
+            df_clean = clean(color, df)
+            path = write_local(color, df_clean, dataset_file, engine)
+
+if __name__ == "__main__":
+    web_to_gcs()
+```
+
+Next, in a seperate terminal instance we can start pgcli:
+
+```bash
+pgcli -h localhost -u myuser -d ny_taxi
+pgcli -h localhost -u evanhofmeister -d ny_taxi
+```
+
+Then we can create a python enviornment:
+```bash
+conda create -n py39_full anaconda python=3.9
+conda activate py39_full 
+```
+
+Install a few dependencies 
+```bash
+pip install -U prefect
+pip install psycopg2-binary
+```
+
+![pgcli_table_count.png](pgcli_table_count.png.png)
+
+
+
+Next we can step through the below procedures to run dbt and piperider:
 
 1. Fork this repo
 2. Clone your forked repo
@@ -69,250 +221,21 @@ For this homework we can follow the below steps to run Piperider with DuckDB:
 	
 	View the HTML report to see the full statistical report of your data source.
 	
-2. Make data model changes (move statistics to their own model)
 
-	a. Create a new model `models/core/dm_monthly_zone_statistics.sql`
-
-	```sql
-	{{ config(materialized='table') }}
-	
-	with trips_data as (
-	select * from {{ ref('fact_trips') }}
-	)
-	select
-	-- Reveneue grouping
-	pickup_zone as revenue_zone,
-	date_trunc('month', pickup_datetime) as revenue_month,
-	--Note: For BQ use instead: date_trunc(pickup_datetime, month) as revenue_month,
-	
-	service_type,
-	
-	-- Additional calculations
-	count(tripid) as total_monthly_trips,
-	avg(passenger_count) as avg_montly_passenger_count,
-	avg(trip_distance) as avg_montly_trip_distance
-	
-	from trips_data
-	group by 1,2,3
-	```
-
-	b. Comment out lines 26-28 of `models/core/dm_monthly_zone_revenue.sql`
-	
-	```sql
-	-- Additional calculations
-	-- count(tripid) as total_monthly_trips,
-	-- avg(passenger_count) as avg_montly_passenger_count,
-	-- avg(trip_distance) as avg_montly_trip_distance
-	```
-
-3. Rebuild the dbt models
-
-	```bash
-	dbt build
-	```
-	
-4. Run PipeRider again to generate the second data report with the new models
-
-	```bash
-	piperider run
-	```
-	
-5. Use the `compare-reports` function to compare the data profile reports
-
-	```bash
-	piperider compare-reports --last
-	```
-	
-	The `compare-reports` outputs two files:
-	- Comparison report: An HTML report comparing the two data profiles
-	- Comparison summary: A Markdown file with a summary of changes.
-
-	The comparison summary markdown is used to insert into a pull request (PR) comment in a later step.
-	
-6. Commit your changes and push your branch
-
-	```bash
-	git add .
-	git commit -m "Added statistics model, updated revenue model"
-	git push origin datamodeling
-	```
-	
-7. Create a pull request.
-
-	a. Visit your repo on GitHub and clck `Compare & pull request`
-	
-	b. Copy the contents of the comparison summary Markdown file into your pull request comment box
-	
-	c. Click `preview` to see how the comparison looks 
-	
-	d. Click `Create pull request` to submit your changes
-	
-	
-### 3. PipeRider Compare Recipe
-
-In the above example we used the `compare-reports` command. PipeRider also has a separate `compare` command that uses the concept of compare 'recipes'. Recipes are a powerful way to define the specifics of how the compare will run, such as:
-
-- The branches to compare
-- The datasource/target to compare
-- The dbt commands to run prior to the compare
-
-When PipeRider is initialized a default compare recipe is created. For our project this looks like:
-
-```yaml
-base:
-  branch: main
-  dbt:
-    commands:
-    - dbt deps
-    - dbt build
-  piperider:
-    command: piperider run
-target:
-  branch: data-modeling
-  dbt:
-    commands:
-    - dbt deps
-    - dbt build
-  piperider:
-    command: piperider run
-```
-
-Run the following command to run the above recipe:
-
-```bash
-piperider compare
-```
-
-As per the recipe, PipeRider will **automatically** do the following:
-
-1. Check out the `main` branch
-2. Build the models
-3. Run PipeRider
-4. Check out the `data-modeling` branch
-4. Build the models
-5. Run PipeRider
-6. Compare the data reports of `main` and `data-modeling`
-7. Output the compare report and summary
-
-
-
-### 4. dbt-defined Metrics
-
-PipeRider also supports profiling [dbt-defined metrics](https://docs.getdbt.com/docs/build/metrics). PipeRider will query dbt metrics and include them in the HTML report.
-
-1. Edit `models/core/schema.yml` and add the following code:
-
-	```yaml
-	metrics:
-	  - name: average_distance
-	    label: Average Distance
-	    model: ref('fact_trips')
-	    description: "The average trip distance"
-	
-	    calculation_method: average
-	    expression: trip_distance
-	
-	    timestamp: pickup_datetime
-	    time_grains: [month, quarter, year]
-	
-	    tags:
-	    - piperider
-	```
-
-	**Important:** Don't forget the `piperider` tag, this is how PipeRider is able to find and query your project metrics
-
-	This defines a new metric on the `fact_trips` table that calculates the average `trip_distance` distance at the `time_grains` of month, quarter, and year.
-
-2. Run dbt compile
-
-	```bash
-	dbt compile
-	```
-	
-	**Note:** As we’re only adding metrics, it is not necessary to build the models again with `dbt build`.
-	
-3. Run PipeRider to generate a new report.
-
-	```bash
-	piperider run
-	```
-
-4. Check the PipeRider report and click the `metrics` tab to view the metrics graph.
-    
-
-### 5. Filter and compare dbt metrics
-
-PipeRider also supports comparing metrics between runs. The comarison is visualized in the Comparison report and included in the comparison summary Markdown. 
-
-1. Edit `models/core/schema.yml` again and add the following `filter` to the metric definition:
-
-	```yaml
-	filters:
-	  - field: pickup_borough
-	    operator: '='
-	    value: "'Manhattan'"
-	  - field: dropoff_borough
-	    operator: '='
-	    value: "'Manhattan'"
-	```
-
-	The filter will modify the metric to only apply to rows that meet the defined conditions - In this case, that the pickup and dropoff borough should be Manhattan.
-
-	Your modified metric definition should now look like this:
-	
-	```yaml
-	metrics:
-	  - name: average_distance
-	    label: Average Distance
-	    model: ref('fact_trips')
-	    description: "The average trip distance"
-
-	    calculation_method: average
-	    expression: trip_distance
-
-	    timestamp: pickup_datetime
-	    time_grains: [month, quarter, year]
-
-	    filters:
-	      - field: pickup_borough
-	        operator: '='
-	        value: "'Manhattan'"
-	      - field: dropoff_borough
-	        operator: '='
-	        value: "'Manhattan'"
-
-	    tags:
-	    - piperider
-	```
-
-2. Compile your dbt project again.
-
-	```bash
-	dbt compile
-	```
-
-3. Run PipeRider again to generate a report with the new, filttered, metrics.
-
-	```bash
-	piperider run
-	```
-
-4. Lastly, run the PipeRider `compare-reports` command to create a comparison report that will include the two, differently defined, metrics.
-
-	```bash
-	piperider compare-reports --last
-	```
-
-5. View the newly generated comparison report to see how the metrics compare.
 
 
 6. The comparison summary also contains a summary of the metric differences between reports.
 
 Q1) From running the below procedure/code we find the correct answer to be 60.1/39.5/0.4
 
+![Q1](HW_Q1.png)
+
 Q2) From running the below procedure/code we find the correct answer to be 61.4M/25K/148.6K
+
+![Q2](HW_Q2.png)
 
 Q3) From running the below procedure/code we find the correct answer to be 2.95/35.43/-23.88/167.3K/181.5M
 
-[piperider-model-edit](piperider-model-edit)
+![Q3](HW_Q3.png)
+
 
