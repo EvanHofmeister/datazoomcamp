@@ -148,7 +148,7 @@ pip install -U prefect
 pip install psycopg2-binary
 ```
 
-![pgcli_table_count.png](pgcli_table_count.png.png)
+![pgcli_table_count.png](pgcli_table_count.png)
 
 
 
